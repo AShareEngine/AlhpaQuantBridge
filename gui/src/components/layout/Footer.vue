@@ -33,25 +33,36 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { CircleCheckFilled, CircleCloseFilled } from '@element-plus/icons-vue'
 import { isHttpServerRunning, isProcessExist } from '@/api/comm_tube'
+import { useCommonStore } from '@/store/common'
 
 const time = ref('')
-const apiRunning = ref(false)
+const commonStore = useCommonStore()
+const apiRunning = computed(() => commonStore.apiServerRunning)
 defineOptions({
   name: 'LayoutFooter'
 })
 
+const refreshApiServerState = async () => {
+  try {
+    const running = await isHttpServerRunning()
+    commonStore.setApiServerRunning(running)
+  } catch (error) {
+    commonStore.setApiServerRunning(false)
+  }
+}
+
 onMounted(async () => {
-  apiRunning.value = await isHttpServerRunning()
+  await refreshApiServerState()
 
   setInterval(async () => {
     isProcessExist()
   }, 2000)
 
   setInterval(async () => {
-    apiRunning.value = await isHttpServerRunning()
+    await refreshApiServerState()
   }, 2000)
 
   setInterval(async () => {
