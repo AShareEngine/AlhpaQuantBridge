@@ -1216,27 +1216,35 @@ class APIService:
     def start(self, host="localhost", port=5000):
         if self._is_running:
             print("Server is already running")
-            return
+            return True
 
         try:
             port = int(port)
         except (TypeError, ValueError):
             print(f"Invalid port: {port}")
-            return
+            return False
 
         from werkzeug.serving import make_server
 
-        self.server = make_server(host, port, self.app, threaded=True)
-        self.thread = threading.Thread(target=self.server.serve_forever)
-        self.thread.daemon = True
-        self.thread.start()
-        self._is_running = True
-        print(f"Server started on {host}:{port}")
+        try:
+            self.server = make_server(host, port, self.app, threaded=True)
+            self.thread = threading.Thread(target=self.server.serve_forever)
+            self.thread.daemon = True
+            self.thread.start()
+            self._is_running = True
+            print(f"Server started on {host}:{port}")
+            return True
+        except Exception as e:
+            self._is_running = False
+            self.server = None
+            self.thread = None
+            print(f"Error starting server: {e}")
+            return False
 
     def stop(self):
         if not self._is_running:
             print("Server is not running")
-            return
+            return True
 
         try:
             if self.server:
@@ -1253,6 +1261,7 @@ class APIService:
             self.server = None
             self.thread = None
             print("Server stopped")
+        return True
 
     def is_running(self):
         return self._is_running and self.thread.is_alive()

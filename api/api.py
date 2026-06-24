@@ -352,13 +352,15 @@ class API(System):
 
     def open_http_server_action(self, open, host, port):
         if open:
-            G.orm.set_storage_var("open_api_server", "1")
             G.orm.set_storage_var("http_server_host", host)
             G.orm.set_storage_var("http_server_port", port)
-            self.http_service.start(host=host, port=port)
-        else:
-            G.orm.set_storage_var("open_api_server", "0")
-            self.http_service.stop()
+            started = self.http_service.start(host=host, port=port)
+            G.orm.set_storage_var("open_api_server", "1" if started else "0")
+            return self.http_service.is_running()
+
+        stopped = self.http_service.stop()
+        G.orm.set_storage_var("open_api_server", "0")
+        return self.http_service.is_running()
 
     def is_http_server_running_action(self):
         return self.http_service.is_running()

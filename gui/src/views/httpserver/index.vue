@@ -3,15 +3,15 @@
     <div class="api-container-top">
       <div class="setting-item">
         <div class="setting-item-title">HOST设置</div>
-        <el-input style="width: 140px" :disabled="setting.open" class="setting-item-input" v-model="setting.host" />
+        <el-input style="width: 140px" :disabled="apiRunning" class="setting-item-input" v-model="setting.host" />
       </div>
       <div class="setting-item">
         <div class="setting-item-title">端口设置</div>
-        <el-input style="width: 80px" :disabled="setting.open" class="setting-item-input" v-model="setting.port" />
+        <el-input style="width: 80px" :disabled="apiRunning" class="setting-item-input" v-model="setting.port" />
       </div>
-      <el-tag disable-transitions v-if="setting.open" type="success" style="margin-right: 10px">服务正在运行</el-tag>
+      <el-tag disable-transitions v-if="apiRunning" type="success" style="margin-right: 10px">服务正在运行</el-tag>
       <el-tag disable-transitions v-else type="danger" style="margin-right: 10px">服务未运行</el-tag>
-      <el-button v-if="!setting.open" type="primary" @click="openHttpServerAction(true)">开启</el-button>
+      <el-button v-if="!apiRunning" type="primary" @click="openHttpServerAction(true)">开启</el-button>
       <el-button v-else type="danger" @click="openHttpServerAction(false)">关闭</el-button>
     </div>
     <div class="api-container-bottom">
@@ -62,14 +62,16 @@
 
 <script setup>
 import { isHttpServerRunning, openHttpServer } from '@/api/comm_tube'
+import { useCommonStore } from '@/store/common'
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, reactive } from 'vue'
 
+const commonStore = useCommonStore()
 const setting = reactive({
   host: '127.0.0.1',
-  port: '8080',
-  open: false
+  port: '8080'
 })
+const apiRunning = computed(() => commonStore.apiServerRunning)
 
 const baseUrl = computed(() => `http://${setting.host}:${setting.port}`)
 
@@ -375,8 +377,12 @@ onMounted(() => {
 })
 
 const checkHttpServer = async () => {
-  const res = await isHttpServerRunning()
-  setting.open = res
+  try {
+    const res = await isHttpServerRunning()
+    commonStore.setApiServerRunning(res)
+  } catch (error) {
+    commonStore.setApiServerRunning(false)
+  }
 }
 
 const fallbackCopy = (text) => {
@@ -409,9 +415,23 @@ const copyText = async (text, label = '内容') => {
   }
 }
 
-const openHttpServerAction = (open) => {
-  setting.open = open
-  openHttpServer(open, setting.host, setting.port)
+const openHttpServerAction = async (open) => {
+  try {
+    const result = await openHttpServer(open, setting.host, setting.port)
+    if (typeof result === 'boolean') {
+      commonStore.setApiServerRunning(result)
+    } else {
+      await checkHttpServer()
+    }
+    if (commonStore.apiServerRunning === open) {
+      ElMessage.success(open ? 'API服务已开启' : 'API服务已关闭')
+    } else {
+      ElMessage.error(open ? 'API服务开启失败' : 'API服务关闭失败')
+    }
+  } catch (error) {
+    await checkHttpServer()
+    ElMessage.error(open ? 'API服务开启失败' : 'API服务关闭失败')
+  }
 }
 </script>
 
