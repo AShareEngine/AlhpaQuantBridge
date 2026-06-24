@@ -14,7 +14,6 @@ import asyncio
 from api.trade_controller import TradeController
 from api.trading_related.task_scheduler import TaskScheduler
 import threading
-from api.system import System
 from .tools.sys_config import get_os_type
 import subprocess
 import webview

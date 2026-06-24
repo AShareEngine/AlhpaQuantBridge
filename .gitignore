@@ -123,6 +123,9 @@ dist
 *.pyc
 *.pyo
 *.pyd
+!pyapp/pkg/xtquant/*.pyd
+!pyapp/pkg/xtquant/xtbson/bson36/*.pyd
+!pyapp/pkg/xtquant/xtbson/bson37/*.pyd
 *.egg-info/
 venv/
 pyapp/pyenv
