@@ -1,0 +1,180 @@
+import { useCommonStore } from '@/store/common.js'
+
+export const getSettingConfig = async () => {
+  const settingConfig = useCommonStore().settingConfig
+  if(settingConfig === null || Object.keys(settingConfig).length <= 1){
+    const res = await window.pywebview.api.get_setting_config()
+    useCommonStore().setSettingConfig(res)
+    // await saveConfig(res)
+    return res
+  }
+  return settingConfig
+}
+export const saveConfig = (params) => {
+  useCommonStore().setSettingConfig(params)
+  return window.pywebview.api.save_config(params)
+}
+
+export const addAccount = (params) => {
+  return window.pywebview.api.add_account(params)
+}
+
+export const getAccountList = () => {
+  return window.pywebview.api.get_account_list()
+}
+
+export const deleteAccount = (accountId) => {
+  return window.pywebview.api.delete_account(accountId)
+}
+
+export const updateAccount = (accountId, params) => {
+  return window.pywebview.api.update_account(accountId, params)
+}
+
+export const getTaskList = (params) => {
+  return window.pywebview.api.get_task_list(params)
+}
+
+export const getAccountTaskList = (params) => {
+  return window.pywebview.api.get_account_task_list(params)
+}
+export const getTaskDetail = (params) => {
+  return window.pywebview.api.get_task_detail(params)
+}
+export const runTask = (params) => {
+  return window.pywebview.api.run_task(params)
+}
+export const getOrderList = (params) => {
+  return window.pywebview.api.get_order_list(params)
+}
+export const connectQMT = async(item) => {
+  const isAccSubState = await window.pywebview.api.connect_qmt(item)
+  // await useCommonStore().changeisAccSubState(isAccSubState)
+  // return isAccSubState
+}
+
+export const disconnect = () => {
+  return window.pywebview.api.disconnect()
+}
+
+
+export const isProcessExist = () => {
+  return window.pywebview.api.is_process_exist_action()
+}
+
+export const createTask = (params) => {
+  return window.pywebview.api.create_task(params)
+}
+
+export const deleteTask = (params) => {
+  return window.pywebview.api.delete_task(params)
+}
+
+export const testConnect = (path,type) => {
+  return window.pywebview.api.test_connect(path,type)
+}
+
+export const checkStrategyCodeExists = (strategy_code)=>{
+  return window.pywebview.api.check_strategy_code_exists(strategy_code)
+}
+
+export const chooseDirectory = (client_type)=>{
+  return window.pywebview.api.open_directory_dialog(client_type)
+}
+
+export const getPositionByTaskId = (task_id) => {
+  return window.pywebview.api.get_position_by_task_id(task_id)
+}
+export const deletePositionById = (id) => {
+  return window.pywebview.api.delete_position_by_id(id)
+}
+export const updatePosition = (id, params) => {
+  return window.pywebview.api.update_position(id, params)
+}
+export const addPosition = (params) => {
+  return window.pywebview.api.add_position(params)
+}
+
+export const batchAddPositions = (paramsList) => {
+  return window.pywebview.api.batch_add_positions(paramsList)
+}
+
+export const checkPositionExists = (security_code, task_id) => {
+  return window.pywebview.api.check_position_exists(security_code, task_id)
+}
+  
+export const updateTaskCanUseAmount = (task_id, can_use_amount) => {
+  return window.pywebview.api.update_task(task_id, can_use_amount)
+}
+
+export const queryTradeToday = (task_id) => {
+  return window.pywebview.api.query_trade_today(task_id)
+}
+
+export const system_getAppInfo = ()=>{
+  return window.pywebview.api.system_getAppInfo()
+}
+export const queryLogList = (params) => {
+  return window.pywebview.api.query_log_list(params)
+}
+
+export const clearLog = () => {
+  return window.pywebview.api.clear_log()
+}
+
+export const resyncBaseData = () => {
+  return window.pywebview.api.resync_base_data()
+}
+
+export const getUniqueID = () => {
+  return window.pywebview.api.get_unique_id()
+}
+  
+export const getAccountInfo = (accountId) => {
+  return window.pywebview.api.get_account_info(accountId)
+}
+
+export const openThsShortcut = (accountId) => {
+  return window.pywebview.api.open_ths_shortcut_action(accountId)
+}
+
+export const controlThsWindow = (show, accountId) => {
+  return window.pywebview.api.control_ths_window_action(show, accountId)
+}
+
+export const getThsWindowState = (accountId) => {
+  return window.pywebview.api.get_ths_window_state_action(accountId)
+}
+
+export const showWindowByPid = (pid) => {
+  return window.pywebview.api.show_window_by_pid_action(pid)
+}
+
+export const hideWindowByPid = (pid) => {
+  return window.pywebview.api.hide_window_by_pid_action(pid)
+}
+
+export const openHttpServer = (open,host,port) => {
+  return window.pywebview.api.open_http_server_action(open,host,port)
+}
+
+export const isHttpServerRunning = () => {
+  return window.pywebview.api.is_http_server_running_action()
+}
+
+export const programStart = ()=>{
+  return window.pywebview.api.program_start()
+}
+
+export const clearAllStockByTaskId = (task_id) => {
+  return window.pywebview.api.clear_all_stock_by_task_id(task_id)
+}
+
+// 账户级自动功能 -> 立即执行一次
+export const runNationalDebtNow = (accountId) => {
+  return window.pywebview.api.run_national_debt_now(accountId)
+}
+
+export const getAccountPostion = (account_id) => {
+  return window.pywebview.api.get_account_postion(account_id)
+}
