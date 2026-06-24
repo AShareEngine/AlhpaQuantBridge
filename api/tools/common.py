@@ -3,14 +3,8 @@
 '''
 Description: 数据库操作相关的API
 '''
-from ast import Try
 import subprocess
 import sys
-from api.db.orm import ORM
-import json
-import re
-from api.tools.token_manager import generate_token,verify_token
-from api.tools.template import get_template_order_count_type_1,get_template_order_count_type_2
 from api.global_params import G
 from api.trading_related.deal import convert_stock_suffix
 from datetime import datetime
@@ -102,73 +96,6 @@ def sync_data_to_global():
         G.logger.error(f"同步数据到全局失败: {e}")
     
     
-
-
-def revert_transition_code(data):
-    try:
-        # 移除TOKEN定义
-        data = re.sub(r'TOKEN\s*=\s*[\'"][^\'"]*[\'"]\n', '', data)
-        
-        # 移除begin状态请求代码 - 精准匹配版本
-        # 1. 首先匹配initialize函数定义
-        initialize_pattern = r'(def\s+initialize\s*\([^\)]*\)\s*:)([\s\S]*?)(?=def\s+|$)'
-        initialize_match = re.search(initialize_pattern, data)
-        
-        if initialize_match:
-            # 获取initialize函数定义
-            initialize_def = initialize_match.group(1)
-            # 获取initialize函数体
-            initialize_body = initialize_match.group(2)
-            
-            # 2. 在函数体中查找begin状态代码块
-            begin_pattern = r'(\s*)(# 发送begin状态[\s\S]*?)(?=\s*def\s+|$)'
-            begin_match = re.search(begin_pattern, initialize_body)
-            
-            if begin_match:
-                # 获取begin状态代码块的缩进
-                indent = begin_match.group(1)
-                # 构建替换后的函数体（移除begin状态代码块）
-                new_body = initialize_body.replace(begin_match.group(0), '')
-                
-                # 3. 重新组合数据
-                data = data.replace(initialize_def + initialize_body, initialize_def + new_body)
-        
-        # 移除on_strategy_end函数
-        end_pattern = r'def\s+on_strategy_end\s*\([^\)]*\)\s*:[\s\S]*?return\s+response\s*'
-        data = re.sub(end_pattern, '', data)
-        
-        # 移除g.context赋值行（如果存在）
-        data = re.sub(r'^\s+g\.context\s*=\s*context\n', '', data, flags=re.M)
-        
-        # 移除g.run_params赋值行
-        data = re.sub(r'^\s+g\.run_params\s*=\s*context\.run_params\.type\n', '', data, flags=re.M)
-        
-        # 还原请求头中的TOKEN引用
-        data = re.sub(r"'Authorization':\s+'Bearer\s*'\+\s*TOKEN", r"'Authorization': 'Bearer {token}'", data)
-        
-        # 移除qmt_auto_orders函数
-        auto_orders_pattern = r'def\s+qmt_auto_orders\s*\([^\)]*\)\s*:[\s\S]*?return\s+orderInfo\n'
-        data = re.sub(auto_orders_pattern, '', data)
-        
-        # 还原原始下单函数调用
-        data = re.sub(r'qmt_auto_orders\(["\'](order_target|order_value|order_target_value|order)["\'],\s*', r'\1(', data)
-        
-        # 移除portfolio相关参数（针对type_2）
-        portfolio_pattern = r"'total_amount':\s*g\.context\.portfolio\.positions\[security\]\.total_amount,?[\s\n]*'total_value':\s*g\.context\.portfolio\.total_value,?[\s\n]*"
-        data = re.sub(portfolio_pattern, '', data)
-        
-        # 移除添加的 on_event 函数
-        event_pattern = r'def\s+on_event\s*\([^)]*\)\s*:[\s\S]*?return\s+response\s*'
-        data = re.sub(event_pattern, '', data)
-        
-        # 清理多余的空行
-        data = re.sub(r'\n{3,}', '\n\n', data)
-        
-        return data
-    except Exception as e:
-        G.logger.error(f"还原错误: {e}")
-        return "还原错误"
-
 # 打开同花顺
 def open_ths_shortcut(file_path):
     """打开Windows快捷方式文件"""
@@ -275,27 +202,6 @@ def is_process_exist():
         return False
     except Exception:
         return False
-
-    
-    # 转译代码 
-def transition_code(data,taskDic):
-    config =  G.orm.get_setting_config()
-    run_model_type = config['run_model_type']
-
-    if run_model_type == 2:
-        token = G.orm.get_storage_var('qmt_token')
-    else:
-        unique_id = G.unique_id
-        plaintext = {
-            "u": unique_id,
-            "p":'local'
-        }
-        token = generate_token(plaintext,config['salt'])
-    if taskDic['order_count_type'] == 1:
-        return get_template_order_count_type_1(taskDic,data,config,token)
-    else:
-        return get_template_order_count_type_2(taskDic,data,config,token)
-
 
 def control_ths_window(show: bool):
     """
