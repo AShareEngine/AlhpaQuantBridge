@@ -233,7 +233,7 @@ def WebViewApp(ifCef=False):
     # 是否为开发环境
     if Config.devEnv:
         # 开发环境
-        MAIN_DIR = f'http://localhost:{Config.devPort}/'
+        MAIN_DIR = f'http://127.0.0.1:{Config.devPort}/'
         template = os.path.join(MAIN_DIR, "")    # 设置页面，指向远程
     else:
         # 生产环境

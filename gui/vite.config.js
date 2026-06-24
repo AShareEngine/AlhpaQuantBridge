@@ -11,6 +11,10 @@ export default defineConfig({
     }
   },
   envDir: '../', // 指定环境文件在上一级目录
+  server: {
+    host: '127.0.0.1',
+    port: 5173
+  },
   build: {
     sourcemap: false,
     chunkSizeWarningLimit: 1500, // 块大小警告的限制（以 kbs 为单位）

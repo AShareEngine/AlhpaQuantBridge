@@ -11,6 +11,7 @@ export const useCommonStore = defineStore('common', {
     // isThsState: false, //同花顺连接状态
     taskList: [],
     showTerminal: true,
+    apiServerRunning: false,
     taskStateDic:{},
     settingConfig: {
       client_type:1
@@ -49,6 +50,9 @@ export const useCommonStore = defineStore('common', {
     },
     changeShowTerminal(params) {
       this.showTerminal = params
+    },
+    setApiServerRunning(params) {
+      this.apiServerRunning = !!params
     },
     setSettingConfig(params) {
       this.settingConfig = {

@@ -1,6 +1,8 @@
 from flask import Flask, jsonify, request
 import threading
+from datetime import datetime
 from api.global_params import G
+from api.httpserver.xtdata_gateway import DataServiceException, XtDataGateway
 
 
 class APIService:
@@ -60,7 +62,9 @@ class APIService:
         self.thread = None
         self.trade_controller = trade_controller
         self.api_handler = api_handler
+        self.data_gateway = XtDataGateway()
         self._register_routes()
+        self._register_data_routes()
         self._is_running = False
 
         import logging
@@ -83,7 +87,9 @@ class APIService:
             jsonify(
                 {
                     "code": status_code,
+                    "success": 200 <= status_code < 300,
                     "message": message,
+                    "timestamp": datetime.now().isoformat(),
                     "data": data,
                 }
             ),
@@ -95,7 +101,9 @@ class APIService:
             jsonify(
                 {
                     "code": status_code,
+                    "success": False,
                     "message": message,
+                    "timestamp": datetime.now().isoformat(),
                     "error": message,
                     "data": data,
                 }
@@ -278,6 +286,556 @@ class APIService:
             "summary": summary,
             "accounts": account_items,
         }
+
+    def _as_list(self, value):
+        if value in (None, ""):
+            return []
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+        if isinstance(value, tuple):
+            return [str(item).strip() for item in value if str(item).strip()]
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return [str(value).strip()]
+
+    def _as_bool(self, value, default=False):
+        if value in (None, ""):
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return bool(value)
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in ("1", "true", "yes", "y", "on"):
+                return True
+            if normalized in ("0", "false", "no", "n", "off"):
+                return False
+        return default
+
+    def _as_int(self, value, default=0):
+        if value in (None, ""):
+            return default
+        return int(value)
+
+    def _as_str(self, value, default=""):
+        if value in (None, ""):
+            return default
+        return str(value).strip()
+
+    def _json_body(self):
+        data = request.get_json(silent=True)
+        return data if isinstance(data, dict) else {}
+
+    def _symbols_from_payload(self, payload, required=True):
+        for key in ("symbols", "stock_list", "code_list"):
+            symbols = self._as_list(payload.get(key))
+            if symbols:
+                return symbols, None
+
+        for key in ("symbol", "stock_code", "code", "security_code"):
+            symbol = self._as_str(payload.get(key))
+            if symbol:
+                return [symbol], None
+
+        if required:
+            return None, "symbols is required"
+        return [], None
+
+    def _market_data_params(self, payload):
+        symbols, error_message = self._symbols_from_payload(payload)
+        if error_message:
+            return None, error_message
+        try:
+            return {
+                "symbols": symbols,
+                "period": self._as_str(payload.get("period"), "1d"),
+                "start_time": self._as_str(payload.get("start_time")),
+                "end_time": self._as_str(payload.get("end_time")),
+                "count": self._as_int(payload.get("count"), -1),
+                "fields": self._as_list(payload.get("fields")),
+                "adjust_type": self._as_str(
+                    payload.get("adjust_type", payload.get("dividend_type")),
+                    "none",
+                ),
+                "fill_data": self._as_bool(payload.get("fill_data"), True),
+            }, None
+        except (TypeError, ValueError):
+            return None, "count format is invalid"
+
+    def _handle_data_result(self, callback, message):
+        try:
+            return self._success(callback(), message=message)
+        except DataServiceException as exc:
+            return self._error(
+                str(exc),
+                exc.status_code,
+                {"error_code": exc.error_code},
+            )
+        except Exception as exc:
+            G.logger.exception("data api failed")
+            return self._error(
+                f"data api failed: {str(exc)}",
+                500,
+                {"error_code": "DATA_SERVICE_ERROR"},
+            )
+
+    def _register_data_routes(self):
+        @self.app.route("/api/v1/data/kline-history", methods=["POST"])
+        def data_kline_history():
+            payload = self._json_body()
+            params, error_message = self._market_data_params(payload)
+            if error_message:
+                return self._error(error_message)
+
+            return self._handle_data_result(
+                lambda: {
+                    "items": self.data_gateway.get_kline_history(
+                        symbols=params["symbols"],
+                        period=params["period"],
+                        start_time=params["start_time"],
+                        end_time=params["end_time"],
+                        fields=params["fields"],
+                        adjust_type=params["adjust_type"],
+                        fill_data=params["fill_data"],
+                    )
+                },
+                "获取 K 线历史成功",
+            )
+
+        @self.app.route("/api/v1/data/tick-history", methods=["POST"])
+        def data_tick_history():
+            payload = self._json_body()
+            symbols, error_message = self._symbols_from_payload(payload)
+            if error_message:
+                return self._error(error_message)
+
+            return self._handle_data_result(
+                lambda: {
+                    "items": self.data_gateway.get_tick_history(
+                        symbols=symbols,
+                        start_time=self._as_str(payload.get("start_time")),
+                        end_time=self._as_str(payload.get("end_time")),
+                        fields=self._as_list(payload.get("fields")),
+                        adjust_type=self._as_str(
+                            payload.get("adjust_type", payload.get("dividend_type")),
+                            "none",
+                        ),
+                    )
+                },
+                "获取 Tick 历史成功",
+            )
+
+        @self.app.route("/api/v1/data/full-tick", methods=["POST"])
+        def data_full_tick():
+            payload = self._json_body()
+            symbols, error_message = self._symbols_from_payload(payload)
+            if error_message:
+                return self._error(error_message)
+
+            return self._handle_data_result(
+                lambda: {"items": self.data_gateway.get_full_tick_snapshot(symbols)},
+                "获取全量 Tick 快照成功",
+            )
+
+        @self.app.route("/api/v1/data/market-data-ex", methods=["POST"])
+        def data_market_data_ex():
+            payload = self._json_body()
+            params, error_message = self._market_data_params(payload)
+            if error_message:
+                return self._error(error_message)
+
+            return self._handle_data_result(
+                lambda: {"items": self.data_gateway.get_market_data_ex(**params)},
+                "获取扩展行情数据成功",
+            )
+
+        @self.app.route("/api/v1/data/local-data", methods=["POST"])
+        def data_local_data():
+            payload = self._json_body()
+            params, error_message = self._market_data_params(payload)
+            if error_message:
+                return self._error(error_message)
+
+            return self._handle_data_result(
+                lambda: {"items": self.data_gateway.get_local_data(**params)},
+                "获取本地行情数据成功",
+            )
+
+        @self.app.route("/api/v1/data/full-kline", methods=["POST"])
+        def data_full_kline():
+            payload = self._json_body()
+            params, error_message = self._market_data_params(payload)
+            if error_message:
+                return self._error(error_message)
+            if payload.get("count") in (None, ""):
+                params["count"] = 1
+
+            return self._handle_data_result(
+                lambda: {"items": self.data_gateway.get_full_kline(**params)},
+                "获取最新交易日 K 线成功",
+            )
+
+        @self.app.route("/api/v1/data/financial", methods=["POST"])
+        def data_financial():
+            payload = self._json_body()
+            symbols, error_message = self._symbols_from_payload(payload)
+            if error_message:
+                return self._error(error_message)
+            table_names = self._as_list(payload.get("table_names", payload.get("table_list")))
+            if not table_names:
+                return self._error("table_names is required")
+
+            return self._handle_data_result(
+                lambda: {
+                    "items": self.data_gateway.get_financial_data(
+                        symbols,
+                        table_names,
+                        start_time=self._as_str(payload.get("start_time")),
+                        end_time=self._as_str(payload.get("end_time")),
+                    )
+                },
+                "获取财务数据成功",
+            )
+
+        @self.app.route("/api/v1/data/instrument/<symbol>", methods=["GET"])
+        def data_instrument(symbol):
+            complete = self._as_bool(request.args.get("complete"), False)
+            return self._handle_data_result(
+                lambda: self.data_gateway.get_instrument_detail(symbol, complete=complete),
+                "获取合约信息成功",
+            )
+
+        @self.app.route("/api/v1/data/instrument-type/<symbol>", methods=["GET"])
+        def data_instrument_type(symbol):
+            return self._handle_data_result(
+                lambda: self.data_gateway.get_instrument_type(symbol),
+                "获取合约类型成功",
+            )
+
+        @self.app.route("/api/v1/data/trade-times/<symbol>", methods=["GET"])
+        def data_trade_times(symbol):
+            return self._handle_data_result(
+                lambda: self.data_gateway.get_trade_times(symbol),
+                "获取交易时间段成功",
+            )
+
+        @self.app.route("/api/v1/data/main-contract/<code_market>", methods=["GET"])
+        def data_main_contract(code_market):
+            return self._handle_data_result(
+                lambda: self.data_gateway.get_main_contract(
+                    code_market,
+                    start_time=self._as_str(request.args.get("start_time")),
+                    end_time=self._as_str(request.args.get("end_time")),
+                ),
+                "获取主力合约成功",
+            )
+
+        @self.app.route("/api/v1/data/trading-calendar", methods=["POST"])
+        def data_trading_calendar():
+            payload = self._json_body()
+            market = self._as_str(payload.get("market"))
+            if not market:
+                return self._error("market is required")
+
+            return self._handle_data_result(
+                lambda: self.data_gateway.get_trading_calendar(
+                    market,
+                    start_time=self._as_str(payload.get("start_time")),
+                    end_time=self._as_str(payload.get("end_time")),
+                ),
+                "获取交易日历成功",
+            )
+
+        @self.app.route("/api/v1/data/trading-dates", methods=["POST"])
+        def data_trading_dates():
+            payload = self._json_body()
+            market = self._as_str(payload.get("market"))
+            if not market:
+                return self._error("market is required")
+            try:
+                count = self._as_int(payload.get("count"), -1)
+            except (TypeError, ValueError):
+                return self._error("count format is invalid")
+
+            return self._handle_data_result(
+                lambda: self.data_gateway.get_trading_dates(
+                    market,
+                    start_time=self._as_str(payload.get("start_time")),
+                    end_time=self._as_str(payload.get("end_time")),
+                    count=count,
+                ),
+                "获取交易日列表成功",
+            )
+
+        @self.app.route("/api/v1/data/holidays", methods=["GET"])
+        def data_holidays():
+            return self._handle_data_result(
+                lambda: {"items": self.data_gateway.get_holidays()},
+                "获取节假日列表成功",
+            )
+
+        @self.app.route("/api/v1/data/index-weight", methods=["POST"])
+        def data_index_weight():
+            payload = self._json_body()
+            index_code = self._as_str(payload.get("index_code"))
+            if not index_code:
+                return self._error("index_code is required")
+
+            return self._handle_data_result(
+                lambda: self.data_gateway.get_index_weight(index_code),
+                "获取指数权重成功",
+            )
+
+        @self.app.route("/api/v1/data/periods", methods=["GET"])
+        def data_periods():
+            return self._handle_data_result(
+                lambda: {"items": self.data_gateway.get_period_list()},
+                "获取可用周期列表成功",
+            )
+
+        @self.app.route("/api/v1/data/data-dir", methods=["GET"])
+        def data_data_dir():
+            return self._handle_data_result(
+                lambda: self.data_gateway.get_data_dir(),
+                "获取数据目录成功",
+            )
+
+        @self.app.route("/api/v1/data/sectors", methods=["GET"])
+        def data_sectors():
+            return self._handle_data_result(
+                lambda: {
+                    "items": self.data_gateway.get_sector_list(
+                        sector_name=request.args.get("sector_name")
+                    )
+                },
+                "获取板块列表成功",
+            )
+
+        @self.app.route("/api/v1/data/divid-factors", methods=["POST"])
+        def data_divid_factors():
+            payload = self._json_body()
+            stock_code = self._as_str(payload.get("stock_code", payload.get("symbol")))
+            if not stock_code:
+                return self._error("stock_code is required")
+
+            return self._handle_data_result(
+                lambda: self.data_gateway.get_divid_factors(
+                    stock_code,
+                    start_time=self._as_str(payload.get("start_time")),
+                    end_time=self._as_str(payload.get("end_time")),
+                ),
+                "获取除权除息数据成功",
+            )
+
+        @self.app.route("/api/v1/data/cb-info/<symbol>", methods=["GET"])
+        def data_cb_info(symbol):
+            return self._handle_data_result(
+                lambda: self.data_gateway.get_cb_info(symbol),
+                "获取可转债信息成功",
+            )
+
+        @self.app.route("/api/v1/data/ipo-info", methods=["GET"])
+        def data_ipo_info():
+            return self._handle_data_result(
+                lambda: {
+                    "items": self.data_gateway.get_ipo_info(
+                        start_time=self._as_str(request.args.get("start_time")),
+                        end_time=self._as_str(request.args.get("end_time")),
+                    )
+                },
+                "获取新股申购信息成功",
+            )
+
+        @self.app.route("/api/v1/data/etf-info", methods=["GET"])
+        def data_etf_info_all():
+            return self._handle_data_result(
+                lambda: self.data_gateway.get_etf_info(),
+                "获取 ETF 信息成功",
+            )
+
+        @self.app.route("/api/v1/data/etf-info/<symbol>", methods=["GET"])
+        def data_etf_info(symbol):
+            return self._handle_data_result(
+                lambda: self.data_gateway.get_etf_info(symbol),
+                "获取 ETF 信息成功",
+            )
+
+        @self.app.route("/api/v1/data/l2/quote", methods=["POST"])
+        def data_l2_quote():
+            payload = self._json_body()
+            symbols, error_message = self._symbols_from_payload(payload)
+            if error_message:
+                return self._error(error_message)
+            try:
+                count = self._as_int(payload.get("count"), -1)
+            except (TypeError, ValueError):
+                return self._error("count format is invalid")
+
+            return self._handle_data_result(
+                lambda: {
+                    "items": self.data_gateway.get_l2_quote(
+                        symbols,
+                        start_time=self._as_str(payload.get("start_time")),
+                        end_time=self._as_str(payload.get("end_time")),
+                        count=count,
+                        fields=self._as_list(payload.get("fields")),
+                    )
+                },
+                "获取 L2 快照成功",
+            )
+
+        @self.app.route("/api/v1/data/l2/order", methods=["POST"])
+        def data_l2_order():
+            payload = self._json_body()
+            symbols, error_message = self._symbols_from_payload(payload)
+            if error_message:
+                return self._error(error_message)
+            try:
+                count = self._as_int(payload.get("count"), -1)
+            except (TypeError, ValueError):
+                return self._error("count format is invalid")
+
+            return self._handle_data_result(
+                lambda: {
+                    "items": self.data_gateway.get_l2_order(
+                        symbols,
+                        start_time=self._as_str(payload.get("start_time")),
+                        end_time=self._as_str(payload.get("end_time")),
+                        count=count,
+                        fields=self._as_list(payload.get("fields")),
+                    )
+                },
+                "获取 L2 逐笔委托成功",
+            )
+
+        @self.app.route("/api/v1/data/l2/transaction", methods=["POST"])
+        def data_l2_transaction():
+            payload = self._json_body()
+            symbols, error_message = self._symbols_from_payload(payload)
+            if error_message:
+                return self._error(error_message)
+            try:
+                count = self._as_int(payload.get("count"), -1)
+            except (TypeError, ValueError):
+                return self._error("count format is invalid")
+
+            return self._handle_data_result(
+                lambda: {
+                    "items": self.data_gateway.get_l2_transaction(
+                        symbols,
+                        start_time=self._as_str(payload.get("start_time")),
+                        end_time=self._as_str(payload.get("end_time")),
+                        count=count,
+                        fields=self._as_list(payload.get("fields")),
+                    )
+                },
+                "获取 L2 逐笔成交成功",
+            )
+
+        @self.app.route("/api/v1/data/download/history", methods=["POST"])
+        def data_download_history():
+            payload = self._json_body()
+            stock_code = self._as_str(payload.get("stock_code", payload.get("symbol")))
+            if not stock_code:
+                return self._error("stock_code is required")
+
+            return self._handle_data_result(
+                lambda: self.data_gateway.download_history_data(
+                    stock_code,
+                    period=self._as_str(payload.get("period"), "1d"),
+                    start_time=self._as_str(payload.get("start_time")),
+                    end_time=self._as_str(payload.get("end_time")),
+                    incrementally=self._as_bool(payload.get("incrementally"), False),
+                ),
+                "下载历史行情数据成功",
+            )
+
+        @self.app.route("/api/v1/data/download/history/batch", methods=["POST"])
+        def data_download_history_batch():
+            payload = self._json_body()
+            symbols, error_message = self._symbols_from_payload(payload)
+            if error_message:
+                return self._error(error_message)
+
+            return self._handle_data_result(
+                lambda: self.data_gateway.download_history_data_batch(
+                    symbols,
+                    period=self._as_str(payload.get("period"), "1d"),
+                    start_time=self._as_str(payload.get("start_time")),
+                    end_time=self._as_str(payload.get("end_time")),
+                    incrementally=self._as_bool(payload.get("incrementally"), False),
+                ),
+                "批量下载历史行情数据成功",
+            )
+
+        @self.app.route("/api/v1/data/download/financial", methods=["POST"])
+        def data_download_financial():
+            payload = self._json_body()
+            symbols, error_message = self._symbols_from_payload(payload)
+            if error_message:
+                return self._error(error_message)
+
+            return self._handle_data_result(
+                lambda: self.data_gateway.download_financial_data(
+                    symbols,
+                    table_names=self._as_list(payload.get("table_names", payload.get("table_list"))),
+                    start_time=self._as_str(payload.get("start_time")),
+                    end_time=self._as_str(payload.get("end_time")),
+                ),
+                "下载财务数据成功",
+            )
+
+        @self.app.route("/api/v1/data/download/index-weight", methods=["POST"])
+        def data_download_index_weight():
+            payload = self._json_body()
+            return self._handle_data_result(
+                lambda: self.data_gateway.download_index_weight(
+                    index_code=self._as_str(payload.get("index_code")) or None
+                ),
+                "下载指数权重数据成功",
+            )
+
+        @self.app.route("/api/v1/data/download/history-contracts", methods=["POST"])
+        def data_download_history_contracts():
+            payload = self._json_body()
+            return self._handle_data_result(
+                lambda: self.data_gateway.download_history_contracts(
+                    market=self._as_str(payload.get("market")) or None
+                ),
+                "下载历史合约数据成功",
+            )
+
+        @self.app.route("/api/v1/data/download/sector", methods=["POST"])
+        def data_download_sector():
+            payload = self._json_body()
+            return self._handle_data_result(
+                lambda: self.data_gateway.download_sector_data(
+                    sector_name=self._as_str(payload.get("sector_name")) or None
+                ),
+                "下载板块数据成功",
+            )
+
+        @self.app.route("/api/v1/data/download/holiday", methods=["POST"])
+        def data_download_holiday():
+            return self._handle_data_result(
+                lambda: self.data_gateway.download_holiday_data(),
+                "下载节假日数据成功",
+            )
+
+        @self.app.route("/api/v1/data/download/cb", methods=["POST"])
+        def data_download_cb():
+            return self._handle_data_result(
+                lambda: self.data_gateway.download_cb_data(),
+                "下载可转债数据成功",
+            )
+
+        @self.app.route("/api/v1/data/download/etf", methods=["POST"])
+        def data_download_etf():
+            return self._handle_data_result(
+                lambda: self.data_gateway.download_etf_info(),
+                "下载 ETF 数据成功",
+            )
 
     def _register_routes(self):
         @self.app.route("/api/shippings", methods=["GET"])

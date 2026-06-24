@@ -19,7 +19,7 @@
         <h5 style="margin: 0">本地 API 说明</h5>
         <span class="api-copy-note">点击 URL 或 Body 可以直接复制</span>
       </div>
-      <el-alert title="下单前需要先在 API任务 页面添加账号、创建任务并开启任务。任务编号 strategy_code 是外部系统触发下单的主要标识。" type="info" :closable="false" show-icon />
+      <el-alert title="下单前需要先在 API任务 页面添加账号、创建任务并开启任务。数据接口使用本机 QMT / xtdata 获取行情和基础资料。" type="info" :closable="false" show-icon />
       <el-collapse expand-icon-position="left" style="margin-top: 10px">
         <el-collapse-item v-for="doc in apiDocs" :key="doc.name" :title="doc.title" :name="doc.name">
           <div class="api-introduction">
@@ -245,6 +245,127 @@ const apiDocs = computed(() => [
   "code": 200,
   "message": "clear all stock success",
   "data": true
+}`
+  },
+  {
+    name: 'data-kline',
+    title: '获取 K 线历史',
+    method: 'POST',
+    url: `${baseUrl.value}/api/v1/data/kline-history`,
+    body: `{
+  "symbols": ["600000.SH"],
+  "period": "1d",
+  "start_time": "20240101",
+  "end_time": "20240131",
+  "fields": [],
+  "adjust_type": "none",
+  "fill_data": true
+}`,
+    description: [
+      '兼容 quant-qmt-proxy 的 REST 路径',
+      'symbols 也支持逗号分隔字符串；stock_code/code 会自动转成单个 symbols'
+    ],
+    response: `{
+  "code": 200,
+  "success": true,
+  "message": "获取 K 线历史成功",
+  "data": {
+    "items": [
+      {
+        "symbol": "600000.SH",
+        "bars": []
+      }
+    ]
+  }
+}`
+  },
+  {
+    name: 'data-full-tick',
+    title: '获取全量 Tick 快照',
+    method: 'POST',
+    url: `${baseUrl.value}/api/v1/data/full-tick`,
+    body: `{
+  "symbols": ["600000.SH", "000001.SZ"]
+}`,
+    description: ['读取 QMT 当前 full tick 快照；需要本机 QMT 数据服务可用'],
+    response: `{
+  "code": 200,
+  "success": true,
+  "message": "获取全量 Tick 快照成功",
+  "data": {
+    "items": [
+      {
+        "symbol": "600000.SH",
+        "tick": {
+          "last_price": 8.2,
+          "ask_price": [8.21],
+          "bid_price": [8.19]
+        }
+      }
+    ]
+  }
+}`
+  },
+  {
+    name: 'data-instrument',
+    title: '获取合约信息',
+    method: 'GET',
+    url: `${baseUrl.value}/api/v1/data/instrument/600000.SH?complete=false`,
+    description: ['返回 xtdata.get_instrument_detail 的基础信息，字段随 QMT 版本可能不同'],
+    response: `{
+  "code": 200,
+  "success": true,
+  "message": "获取合约信息成功",
+  "data": {
+    "symbol": "600000.SH",
+    "fields": {
+      "InstrumentID": "600000",
+      "InstrumentName": "浦发银行"
+    }
+  }
+}`
+  },
+  {
+    name: 'data-sectors',
+    title: '获取板块成分',
+    method: 'GET',
+    url: `${baseUrl.value}/api/v1/data/sectors?sector_name=沪深A股`,
+    description: ['建议传 sector_name，避免遍历所有板块导致请求时间过长'],
+    response: `{
+  "code": 200,
+  "success": true,
+  "message": "获取板块列表成功",
+  "data": {
+    "items": [
+      {
+        "sector_name": "沪深A股",
+        "symbols": ["600000.SH", "000001.SZ"]
+      }
+    ]
+  }
+}`
+  },
+  {
+    name: 'data-download-history',
+    title: '下载历史行情',
+    method: 'POST',
+    url: `${baseUrl.value}/api/v1/data/download/history`,
+    body: `{
+  "stock_code": "600000.SH",
+  "period": "1d",
+  "start_time": "20240101",
+  "end_time": "20240131",
+  "incrementally": false
+}`,
+    description: ['显式调用 xtdata.download_history_data，用于补齐本地数据后再查询'],
+    response: `{
+  "code": 200,
+  "success": true,
+  "message": "下载历史行情数据成功",
+  "data": {
+    "function": "download_history_data",
+    "success": true
+  }
 }`
   }
 ])
