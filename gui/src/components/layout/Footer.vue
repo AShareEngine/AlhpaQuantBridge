@@ -55,6 +55,7 @@ const refreshApiServerState = async () => {
 }
 
 onMounted(async () => {
+  time.value = new Date().toLocaleString()
   await refreshApiServerState()
 
   setInterval(async () => {
@@ -75,7 +76,6 @@ onMounted(async () => {
 .footer-container {
   display: flex;
   align-items: center;
-  // justify-content: space-between;
   height: 100%;
   .label-tips {
     color: #fff;

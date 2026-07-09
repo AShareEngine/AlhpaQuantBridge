@@ -138,9 +138,10 @@ defineExpose({
   margin-top: 12px;
   max-height: 320px;
   overflow-y: auto;
-  border: 1px solid #ebeef5;
-  border-radius: 6px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-sm);
   padding: 10px;
+  background: var(--app-surface-muted);
 }
 
 .position-row {
@@ -156,6 +157,7 @@ defineExpose({
 
 .stock-code {
   width: 90px;
-  font-weight: 500;
+  color: var(--app-text);
+  font-weight: 700;
 }
 </style>

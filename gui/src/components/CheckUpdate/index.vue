@@ -1,6 +1,6 @@
 <template>
-  <div>
-    <span style="margin-right: 0px;color: #fff;font-size:14px">版本：{{ appInfo?.version }}</span>
+  <div class="check-update">
+    <span class="version-text">版本：{{ appInfo?.version }}</span>
     <el-button key="plain" link @click="onCheckUpdate(false)" type="danger"> 检测更新 </el-button>
     <el-dialog v-model="state.checkVisible" title="检测更新" top="30vh" draggable destroy-on-close :close-on-click-modal="false" :close-on-press-escape="false" :show-close="false" :center="false">
       <div>
@@ -99,6 +99,10 @@ const setPy2Js = () => {
 
 // 检测更新
 const onCheckUpdate = (init = false) => {
+  if (!window.pywebview?.api) {
+    if (!init) ElMessage.warning('客户端环境中才支持检测更新')
+    return
+  }
   if (state.backUpdate) {
     // 从后台更新恢复过来
     state.downloadVisible = true
@@ -170,6 +174,18 @@ const onBack = () => {
 </script>
 
 <style scoped>
+.check-update {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.version-text {
+  margin-right: 0;
+  color: #fff;
+  font-size: 14px;
+}
+
 .update-info {
   margin-left: 20px;
   margin-top: 10px;

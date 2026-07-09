@@ -478,11 +478,16 @@ const openHttpServerAction = async (open) => {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
+
+  h5 {
+    color: var(--app-text);
+  }
 }
 
 .api-copy-note {
-  color: #8a5a00;
+  color: var(--app-warning);
   font-size: 12px;
+  font-weight: 650;
 }
 
 .api-introduction {
@@ -491,7 +496,7 @@ const openHttpServerAction = async (open) => {
   padding: 10px;
   user-select: text;
   background: #f5f5f5;
-  border-radius: 8px;
+  border-radius: 6px;
 
   h4 {
     margin: 15px 0 8px;
@@ -504,14 +509,14 @@ const openHttpServerAction = async (open) => {
   position: relative;
   padding: 12px;
   background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    border-color: #409eff;
-    box-shadow: 0 4px 14px rgba(64, 158, 255, 0.12);
+    border-color: var(--app-primary-line);
+    box-shadow: 0 4px 14px rgba(31, 111, 139, 0.12);
   }
 
   code,
@@ -526,7 +531,7 @@ const openHttpServerAction = async (open) => {
 .copy-tip {
   display: inline-block;
   margin-top: 8px;
-  color: #909399;
+  color: var(--app-text-faint);
   font-size: 12px;
 }
 
@@ -535,8 +540,8 @@ const openHttpServerAction = async (open) => {
   margin: 0;
   padding: 12px;
   background: #ffffff;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  border: 1px solid var(--app-border);
   white-space: pre-wrap;
   word-break: break-word;
   font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
@@ -550,11 +555,11 @@ const openHttpServerAction = async (open) => {
 }
 
 .method-get {
-  color: #409eff;
+  color: #2f80ed;
 }
 
 .method-post {
-  color: #67c23a;
+  color: var(--app-success);
 }
 
 .method-put {

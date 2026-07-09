@@ -6,7 +6,7 @@
       </div>
       <div class="loading-text">正在加载中...</div>
       <el-icon class="loading-icon" :size="40">
-        <Loading style="color: #fff" />
+        <Loading />
       </el-icon>
     </div>
   </div>
@@ -40,21 +40,18 @@ onMounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: var(--el-bg-color);
+  background: var(--app-bg);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 9999;
-  background: #f2f2f2;
 }
 
 .loading-content {
   text-align: center;
   padding: 2rem;
   border-radius: 8px;
-  background: var(--el-bg-color-overlay);
-  box-shadow: var(--el-box-shadow-light);
-  background: #646464;
+  background: var(--app-sidebar);
   width: 40%;
 }
 
@@ -88,7 +85,7 @@ onMounted(() => {
 }
 
 .loading-icon {
-  color: var(--el-color-primary);
+  color: #fff;
   animation: rotating 2s linear infinite;
 }
 

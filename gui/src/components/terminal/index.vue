@@ -8,7 +8,7 @@
     </div>
     <div class="terminal-container" ref="listRef">
       <span v-for="(item, idx) in messagesArr" :key="idx">
-        <span class="tips" :style="{ color: item.status === 2 ? 'red' : 'white' }">{{ item.date }}-{{ item.message }}</span>
+        <span :class="['tips', { 'tips-error': item.status === 2 }]">{{ item.date }}-{{ item.message }}</span>
       </span>
     </div>
     <el-button v-show="showTerminal" class="clear-btn" @click="clearAction">清除</el-button>
@@ -16,7 +16,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick,defineProps } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRemoteStore } from '@/store/remote.js'
 import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { useCommonStore } from '@/store/common.js'
@@ -68,8 +68,7 @@ watch(
   flex-direction: column;
   padding: 10px;
   flex: 1;
-  background: #000;
-  // overflow-y: scroll;
+  background: var(--app-sidebar-strong);
   position: relative;
   .terminal-container {
     box-sizing: border-box;
@@ -77,20 +76,25 @@ watch(
     flex-direction: column;
     padding: 10px;
     flex: 1;
-    background: #000;
+    background: var(--app-sidebar-strong);
     overflow-y: scroll;
     position: relative;
   }
   .tips {
-    color: #fff;
+    color: #e3edf7;
     font-size: 12px;
+    font-family: var(--app-code-font);
+  }
+  .tips-error {
+    color: var(--app-danger);
+    font-weight: 650;
   }
   .ws-state-view::-webkit-scrollbar {
     display: none;
   }
   .up-icon {
     z-index: 30;
-    background: #22a1e0;
+    background: var(--app-primary);
     height: 30px;
     width: 30px;
     border-radius: 50%;
@@ -106,7 +110,7 @@ watch(
   .down-icon {
     z-index: 30;
 
-    background: #22a1e0;
+    background: var(--app-primary);
     height: 30px;
     width: 30px;
     border-radius: 50%;
@@ -124,7 +128,7 @@ watch(
   position: absolute;
   bottom: 10px;
   right: 40px;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 4px;
   padding: 5px 10px;
   color: #fff;
@@ -132,7 +136,7 @@ watch(
   transition: all 0.3s;
   &:hover {
     background: #fff;
-    color: #000;
+    color: var(--app-sidebar-strong);
   }
 }
 </style>

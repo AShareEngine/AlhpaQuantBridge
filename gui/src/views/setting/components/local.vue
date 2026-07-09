@@ -58,22 +58,21 @@ const resyncBaseDataAction = async () => {
 <style scoped lang="less">
 .setting-container {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  flex-direction: column;
   justify-content: center;
   height: 100%;
-  background-color: #f5f7fb;
-  padding-top: 8vh;
-  box-sizing: border-box;
+  background-color: var(--app-bg);
 }
 
 .setting-panel {
-  width: 64vw;
-  max-width: 860px;
+  width: 60vw;
+  max-width: 760px;
   min-width: 520px;
   background: #fff;
   border-radius: 8px;
-  padding: 22px;
-  border: 1px solid #e5e7eb;
+  padding: 20px;
+  border: 1px solid var(--app-border);
 }
 
 .panel-header {
@@ -86,12 +85,13 @@ const resyncBaseDataAction = async () => {
   h3 {
     margin: 0 0 8px;
     font-size: 18px;
-    color: #1f2937;
+    color: var(--app-text);
+    font-weight: 700;
   }
 
   p {
     margin: 0;
-    color: #667085;
+    color: var(--app-text-muted);
     font-size: 13px;
     line-height: 1.6;
   }
@@ -105,7 +105,7 @@ const resyncBaseDataAction = async () => {
 
 .sync-tip {
   margin-top: 10px;
-  color: #909399;
+  color: var(--app-text-faint);
   font-size: 12px;
 }
 </style>

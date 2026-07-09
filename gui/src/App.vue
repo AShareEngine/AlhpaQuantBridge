@@ -16,8 +16,8 @@ window["remoteCallBack"] = (res) => {
 
 
 <style lang="less">
-body{
-  margin: 0px;
+body {
+  margin: 0;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;

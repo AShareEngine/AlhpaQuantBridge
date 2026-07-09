@@ -126,9 +126,6 @@ onMounted(async () => {
     display: flex;
     align-items: center;
     width: 100%;
-    // justify-content: space-between;
-    // margin-bottom: 10px;
-    // height: 100px;
     .el-form {
       width: 100%;
     }

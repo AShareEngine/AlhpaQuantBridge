@@ -30,10 +30,7 @@ defineOptions({
   overflow-y: hidden;
   .container {
     position: relative;
-    // background: red;
-    // height: 100vh;
-    // width: 100vw;
-    background: #f2f2f2;
+    background: var(--app-bg);
     .header {
       position: absolute;
       width: 100%;
@@ -41,23 +38,23 @@ defineOptions({
       height: 50px;
     }
     .main {
-      padding: 0px;
-      background: #f2f2f2;
+      padding: 0;
+      background: var(--app-bg);
       overflow: hidden;
       position: absolute;
-      bottom: 0px;
-      left: 0px;
-      right: 0px;
+      bottom: 0;
+      left: 0;
+      right: 0;
       top: 50px;
       height: calc(100vh - 90px);
     }
     .footer {
       position: absolute;
-      bottom: 0px;
-      left: 0px;
-      right: 0px;
+      bottom: 0;
+      left: 0;
+      right: 0;
       height: 40px;
-      background: #545c64;
+      background: var(--app-sidebar);
     }
   }
 }

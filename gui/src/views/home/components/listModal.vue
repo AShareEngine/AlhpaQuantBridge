@@ -170,8 +170,9 @@ defineExpose({
   gap: 6px;
 
   span {
-    color: #667085;
+    color: var(--app-text-muted);
     font-size: 12px;
+    font-weight: 650;
   }
 }
 </style>

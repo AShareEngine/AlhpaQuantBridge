@@ -188,13 +188,16 @@ defineExpose({
   overflow: hidden;
   text-overflow: ellipsis;
   display: inline-block;
+  max-width: 520px;
+  color: var(--app-text-muted);
+  font-size: 12px;
 }
 .btn-container {
   width: 100%;
   display: flex;
   justify-content: center;
   .save-btn {
-    width: 80%;
+    width: min(320px, 80%);
   }
 }
 </style>

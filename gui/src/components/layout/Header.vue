@@ -17,7 +17,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft } from '@element-plus/icons-vue'
 
@@ -47,20 +47,21 @@ const handleBack = () => {
   align-items: center;
   justify-content: space-between;
   background-color: #fff;
-  box-shadow: 0 1px 4px rgba(0,21,41,.08);
+  box-shadow: 0 1px 4px rgba(31, 45, 61, 0.08);
 }
 
 .header-left {
   display: flex;
   align-items: center;
   gap: 8px;
+  color: var(--app-text);
+  font-weight: 700;
 }
 
 .back-button {
   display: flex;
   align-items: center;
   gap: 4px;
-  /* margin-top: 2px; */
   font-size: 16px;
 }
 </style> 

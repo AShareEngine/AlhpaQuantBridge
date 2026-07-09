@@ -183,8 +183,8 @@ onMounted(async () => {
       align-items: center;
       padding: 8px 10px;
       background: #fff;
-      border: 1px solid #e8edf3;
-      border-radius: 10px;
+      border: 1px solid var(--app-border);
+      border-radius: 6px;
       margin-bottom: 2px;
     }
 
@@ -207,9 +207,9 @@ onMounted(async () => {
         display: flex;
         flex-direction: column;
         gap: 10px;
-        background: #f7f9fc;
-        border: 1px solid #e8edf3;
-        border-radius: 12px;
+        background: var(--app-surface-muted);
+        border: 1px solid var(--app-border);
+        border-radius: 8px;
         padding: 10px;
       }
 
@@ -219,8 +219,8 @@ onMounted(async () => {
         justify-content: space-between;
         gap: 10px;
         padding: 8px 10px;
-        border-radius: 10px;
-        background: #001629;
+        border-radius: 6px;
+        background: var(--app-sidebar);
       }
 
       .account-title-row {
@@ -249,13 +249,14 @@ onMounted(async () => {
 
       .account-empty {
         font-size: 12px;
-        color: #94a3b8;
+        color: var(--app-text-faint);
         padding: 6px 2px 2px;
       }
 
       .task-cell {
-        background: linear-gradient(to right, #001629, rgb(140, 140, 140));
-        border-radius: 10px;
+        background: linear-gradient(to right, var(--app-sidebar), #637386);
+        border: none;
+        border-radius: 6px;
         padding: 16px;
         padding-bottom: 6px;
         display: flex;
@@ -310,6 +311,10 @@ onMounted(async () => {
             color: #fff;
             margin-left: 6px;
             cursor: pointer;
+            img {
+              width: 30px !important;
+              height: 30px !important;
+            }
             span {
               margin-top: 5px;
             }
@@ -321,7 +326,7 @@ onMounted(async () => {
         }
       }
       .task-cell-activate {
-        background: linear-gradient(-45deg, #af00f9, #01325e, #00559f, #00284b);
+        background: linear-gradient(-45deg, #2c8ca3, #1f6f8b, #24556f, #243447);
         background-size: 600% 600%;
         animation: gradientBG 5s ease infinite;
       }
