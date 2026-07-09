@@ -1,6 +1,7 @@
-from flask import Flask, jsonify, request
 import threading
+import hmac
 from datetime import datetime
+from flask import Flask, jsonify, request
 from api.global_params import G
 from api.httpserver.xtdata_gateway import DataServiceException, XtDataGateway
 
@@ -60,9 +61,11 @@ class APIService:
         self.app = Flask(__name__)
         self.server = None
         self.thread = None
+        self.api_token = None
         self.trade_controller = trade_controller
         self.api_handler = api_handler
         self.data_gateway = XtDataGateway()
+        self._register_auth_hook()
         self._register_routes()
         self._register_data_routes()
         self._is_running = False
@@ -110,6 +113,27 @@ class APIService:
             ),
             status_code,
         )
+
+    def _register_auth_hook(self):
+        @self.app.before_request
+        def require_api_token():
+            if request.method == "OPTIONS":
+                return None
+
+            if not self.api_token:
+                return self._error("api token is not configured", 401)
+
+            request_token = self._extract_request_token()
+            if not request_token or not hmac.compare_digest(request_token, self.api_token):
+                return self._error("invalid or missing api token", 401)
+
+            return None
+
+    def _extract_request_token(self):
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.lower().startswith("bearer "):
+            return auth_header[7:].strip()
+        return request.headers.get("X-API-Token", "").strip()
 
     def _coerce_value(self, key, value, value_type):
         if value == "":
@@ -1213,10 +1237,15 @@ class APIService:
         def total_account_information():
             return self._success(self._build_account_overview())
 
-    def start(self, host="localhost", port=5000):
+    def start(self, host="localhost", port=5000, api_token=None):
         if self._is_running:
             print("Server is already running")
             return True
+
+        api_token = str(api_token or "").strip()
+        if not api_token:
+            print("API token is required")
+            return False
 
         try:
             port = int(port)
@@ -1227,6 +1256,7 @@ class APIService:
         from werkzeug.serving import make_server
 
         try:
+            self.api_token = api_token
             self.server = make_server(host, port, self.app, threaded=True)
             self.thread = threading.Thread(target=self.server.serve_forever)
             self.thread.daemon = True
@@ -1236,6 +1266,7 @@ class APIService:
             return True
         except Exception as e:
             self._is_running = False
+            self.api_token = None
             self.server = None
             self.thread = None
             print(f"Error starting server: {e}")

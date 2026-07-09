@@ -154,12 +154,20 @@ export const hideWindowByPid = (pid) => {
   return window.pywebview.api.hide_window_by_pid_action(pid)
 }
 
-export const openHttpServer = (open,host,port) => {
-  return window.pywebview.api.open_http_server_action(open,host,port)
+export const openHttpServer = (open,host,port,token) => {
+  return window.pywebview.api.open_http_server_action(open,host,port,token)
 }
 
 export const isHttpServerRunning = () => {
   return window.pywebview.api.is_http_server_running_action()
+}
+
+export const getApiToken = () => {
+  return window.pywebview.api.get_api_token()
+}
+
+export const refreshApiToken = () => {
+  return window.pywebview.api.refresh_api_token()
 }
 
 export const programStart = ()=>{

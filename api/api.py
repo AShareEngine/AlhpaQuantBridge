@@ -18,6 +18,7 @@ from .tools.sys_config import get_os_type
 import subprocess
 import webview
 import os
+import secrets
 import logging
 from datetime import datetime
 import sys
@@ -42,6 +43,7 @@ from api.httpserver.request_api import APIService
 AUTO_CONNECTION_WS = int(os.getenv("AUTO_CONNECTION_WS", 1))
 USE_FIXED_WS_URL = int(os.getenv("USE_FIXED_WS_URL", 0))
 WS_URL_FIXED = os.getenv("WS_URL_FIXED")
+HTTP_SERVER_TOKEN_KEY = "http_server_token"
 
 
 class API(System):
@@ -86,6 +88,27 @@ class API(System):
     def storage_set(self, key, val):
         """设置存储变量"""
         G.orm.set_storage_var(key, val)
+
+    def _generate_api_token(self):
+        return "aqb_" + secrets.token_urlsafe(24)
+
+    def _ensure_api_token(self):
+        token = G.orm.get_storage_var(HTTP_SERVER_TOKEN_KEY)
+        if token:
+            return token
+        token = self._generate_api_token()
+        G.orm.set_storage_var(HTTP_SERVER_TOKEN_KEY, token)
+        return token
+
+    def get_api_token(self):
+        return self._ensure_api_token()
+
+    def refresh_api_token(self):
+        if self.http_service.is_running():
+            return self._ensure_api_token()
+        token = self._generate_api_token()
+        G.orm.set_storage_var(HTTP_SERVER_TOKEN_KEY, token)
+        return token
 
     def get_setting_config(self):
         config = G.orm.get_setting_config()
@@ -349,11 +372,13 @@ class API(System):
             return False
         return hide_window_by_pid(int(pid))
 
-    def open_http_server_action(self, open, host, port):
+    def open_http_server_action(self, open, host, port, api_token=None):
         if open:
+            api_token = str(api_token or "").strip() or self._ensure_api_token()
             G.orm.set_storage_var("http_server_host", host)
             G.orm.set_storage_var("http_server_port", port)
-            started = self.http_service.start(host=host, port=port)
+            G.orm.set_storage_var(HTTP_SERVER_TOKEN_KEY, api_token)
+            started = self.http_service.start(host=host, port=port, api_token=api_token)
             G.orm.set_storage_var("open_api_server", "1" if started else "0")
             return self.http_service.is_running()
 
@@ -372,7 +397,8 @@ class API(System):
         if G.orm.get_storage_var("open_api_server") == "1":
             host = G.orm.get_storage_var("http_server_host")
             port = G.orm.get_storage_var("http_server_port")
-            self.http_service.start(host=host, port=port)
+            api_token = self._ensure_api_token()
+            self.http_service.start(host=host, port=port, api_token=api_token)
             G.logger.info(
                 "api服务已启动 host:" + host + " port:" + port,
                 extra={"showMessage": True},
