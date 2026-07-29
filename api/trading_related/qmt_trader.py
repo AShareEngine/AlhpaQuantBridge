@@ -151,6 +151,43 @@ class qmt_trader:
                 extra={"showMessage": True}
             )
 
+    def place_order_sync(self, stock_code='600031.SH',
+                         volume=100, price=20, order_type=xtconstant.STOCK_BUY,
+                         price_type=xtconstant.LATEST_PRICE,
+                         strategy_name='', order_remark=''):
+        """Submit a real QMT order and return QMT's broker order id.
+
+        The generic strategy path remains asynchronous.  API callers that
+        need a durable idempotency/status contract use this synchronous QMT
+        acknowledgement so the bridge can persist the broker id before it
+        returns success to an upstream scheduler.
+        """
+        stock_code = self.adjust_stock(stock=stock_code)
+        order_volume = int(volume)
+        if order_volume <= 0:
+            raise ValueError("委托数量必须大于 0")
+        if self.xt_trader is None or self.acc is None:
+            raise RuntimeError("QMT账号未订阅或未连接qmt")
+        broker_order_id = self.xt_trader.order_stock(
+            account=self.acc,
+            stock_code=stock_code,
+            order_type=order_type,
+            order_volume=order_volume,
+            price_type=price_type,
+            price=price,
+            strategy_name=str(strategy_name or ""),
+            order_remark=str(order_remark or ""),
+        )
+        if broker_order_id is None or int(broker_order_id) <= 0:
+            raise RuntimeError("QMT未接受委托")
+        G.logger.info(
+            "API同步下单 类型{} 代码{} 价格{} 数量{} 券商订单号{}".format(
+                order_type, stock_code, price, order_volume, broker_order_id
+            ),
+            extra={"showMessage": True},
+        )
+        return str(broker_order_id)
+
     def buy(self, security='600031.SH',
             amount=100, price=20, strategy_name='', order_remark=''):
         """

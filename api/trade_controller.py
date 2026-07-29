@@ -33,6 +33,7 @@ from .trading_related.trader_call_back import MyXtQuantTraderCallback
 from .trading_related.ths_blocking_queue import NonBlockingQueue
 from .trading_related.ths_auto import ThsAuto
 from dataclasses import dataclass
+from api.order_contract import api_order_fingerprint, api_order_status_payload
 
 
 @dataclass
@@ -640,6 +641,87 @@ class TradeController:
         else:
             G.logger.error("is_mock_state参数错误")
 
+    def submit_api_order(
+        self,
+        *,
+        account_id,
+        stock_code,
+        volume,
+        price,
+        is_buy,
+        order_style_str,
+        task_id,
+        order_remark,
+        open_mandatory_limit_order=0,
+    ):
+        """Submit one already-persisted API order and return its acknowledgement.
+
+        For QMT we synchronously obtain QMT's broker order number.  This does
+        not wait for a fill; it only removes the ambiguity between a client
+        retry and an accepted broker instruction.  THS remains queue based and
+        is explicitly reported as accepted/pending until it exposes a broker
+        acknowledgement of its own.
+        """
+        with self.multiple_traders_lock:
+            trader_state = self.multiple_traders.get(account_id)
+        if not trader_state:
+            self.refresh_multe_trader_arr()
+            with self.multiple_traders_lock:
+                trader_state = self.multiple_traders.get(account_id)
+        if not trader_state:
+            raise RuntimeError(f"未找到账号交易实例 account_id={account_id}")
+
+        account_client_type = trader_state.info.get("client_type")
+        price_type, optimal_price = get_qmt_price_type(
+            stock_code,
+            order_style_str,
+            is_buy,
+            price,
+            open_mandatory_limit_order,
+            0,
+        )
+        order_type = OrderType.STOCK_BUY if is_buy else OrderType.STOCK_SELL
+        if account_client_type == 2:
+            if not trader_state.acc_is_connect:
+                raise RuntimeError("QMT账号未连接")
+            broker_order_id = trader_state.trader.place_order_sync(
+                stock_code=stock_code,
+                volume=int(volume),
+                price=optimal_price,
+                order_type=order_type,
+                price_type=price_type,
+                strategy_name=str(task_id),
+                order_remark=str(order_remark),
+            )
+            return {
+                "submission_state": "submitted",
+                "broker_order_id": str(broker_order_id),
+                "broker_status": "submitted",
+            }
+        if account_client_type == 1:
+            self.ths_queue.enqueue(
+                {
+                    "stock_code": stock_code,
+                    "volume": int(volume),
+                    "price": optimal_price,
+                    "order_type": order_type,
+                    "order_time": None,
+                    "price_type": price_type,
+                    "strategy_name": str(task_id),
+                    "order_remark": str(order_remark),
+                }
+            )
+            return {
+                "submission_state": "accepted",
+                "broker_order_id": "",
+                "broker_status": "pending",
+            }
+        raise RuntimeError(f"不支持的账号类型 account_id={account_id}")
+
+    def get_api_order_status(self, order_id):
+        """Return the stable, broker-aware representation of one API order."""
+        return api_order_status_payload(G.orm.query_order_by_id(int(order_id)))
+
     def manage_api_trader(self, data):
         try:
             task = None
@@ -724,32 +806,65 @@ class TradeController:
                 "volume": volume,
                 "price": price,
                 "status": 0,
+                "submission_state": "received",
+                "broker_status": "received",
             }
-            orderId = G.orm.save_order(saveData)
-            orderId = str(orderId)
-
-            self.place_order(
+            client_order_id = str(
+                data.get("client_order_id") or data.get("idempotency_key") or ""
+            ).strip()
+            request_fingerprint = api_order_fingerprint(
+                task_id=task["id"],
                 stock_code=stock_code,
                 volume=volume,
                 price=price,
-                is_buy=True if is_buy == 1 else False,
-                order_time=None,
-                order_style_str=order_type,
-                task_id=str(task["id"]),
-                order_remark=orderId,
-                is_mock_state=0,
-                open_mandatory_limit_order=task.get("open_mandatory_limit_order") or 0,
-                account_id=account_id,
+                is_buy=is_buy,
+                order_type=order_type,
             )
-            return True, {
-                "order_id": int(orderId),
-                "task_id": task["id"],
-                "strategy_code": task.get("strategy_code"),
-                "stock_code": stock_code,
-                "volume": volume,
-                "price": price,
-                "is_buy": is_buy,
-            }
+            if client_order_id:
+                saved_order, created = G.orm.save_api_order_once(
+                    saveData,
+                    client_order_id,
+                    request_fingerprint,
+                )
+                if not created:
+                    if str(saved_order.get("request_fingerprint") or "") != request_fingerprint:
+                        return False, "idempotency_key 已用于不同的下单指令"
+                    return True, api_order_status_payload(saved_order, idempotent_replay=True)
+                order_id = int(saved_order["id"])
+            else:
+                order_id = int(G.orm.save_order(saveData))
+
+            G.orm.update_order(order_id, submission_state="submitting")
+            try:
+                submission = self.submit_api_order(
+                    account_id=account_id,
+                    stock_code=stock_code,
+                    volume=volume,
+                    price=price,
+                    is_buy=is_buy == 1,
+                    order_style_str=order_type,
+                    task_id=str(task["id"]),
+                    order_remark=str(order_id),
+                    open_mandatory_limit_order=task.get("open_mandatory_limit_order") or 0,
+                )
+            except Exception as exc:
+                G.orm.update_order(
+                    order_id,
+                    submission_state="rejected",
+                    broker_status="rejected",
+                    status_msg=str(exc),
+                )
+                return False, str(exc)
+
+            G.orm.update_order(
+                order_id,
+                submission_state=submission.get("submission_state") or "accepted",
+                broker_order_id=submission.get("broker_order_id") or None,
+                broker_status=submission.get("broker_status") or "accepted",
+                fix_result_order_id=submission.get("broker_order_id") or None,
+                status_msg="",
+            )
+            return True, api_order_status_payload(G.orm.query_order_by_id(order_id))
         except Exception as e:
             G.logger.error(
                 "manage_api_trader参数错误: {}".format(e), extra={"showMessage": True}

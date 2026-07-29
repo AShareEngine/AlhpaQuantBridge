@@ -145,6 +145,14 @@ class TaskList(BaseModel):
 class Orders(BaseModel):
     '''订单表'''
     __tablename__ = "orders"
+    # `client_order_id` is supplied by an upstream scheduler.  It is kept
+    # distinct from the bridge's primary key and the broker order number so a
+    # retry can be resolved without submitting the same instruction twice.
+    client_order_id = Column(String(), doc='调用方幂等订单号', nullable=True, index=True)
+    request_fingerprint = Column(String(), doc='幂等请求指纹', nullable=True)
+    submission_state = Column(String(), doc='桥接提交状态', nullable=True, server_default='received')
+    broker_order_id = Column(String(), doc='券商订单号', nullable=True)
+    broker_status = Column(String(), doc='券商订单状态', nullable=True)
     security_code = Column(String(), doc='证券代码', nullable=True)
     fix_result_order_id = Column(String(), doc='固定结果订单ID', nullable=True)
     style = Column(String(), doc='风格', nullable=True)
@@ -363,4 +371,3 @@ class DATA_TABLE_RECORD(BaseModel):
     record_content = Column(String(), doc='记录内容', nullable=True)
     def __str__(self):
         return f"DATA_TABLE_RECORD: {self.id}"
-    

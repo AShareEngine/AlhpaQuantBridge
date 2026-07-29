@@ -8,6 +8,7 @@ from api.db.models import (
 )
 from pyapp.db.db import DB
 from sqlalchemy import select, update, insert, and_, or_, desc, func, text
+from sqlalchemy.exc import IntegrityError
 from api.tools.sys_config import generate_random_letters
 def _convert_stock_suffix(stock_code: str) -> str:
     """转换股票代码后缀"""
@@ -61,6 +62,27 @@ class ORM:
                 dbSession.execute(text("ALTER TABLE account ADD COLUMN auto_buy_stock_ipo INTEGER DEFAULT 0"))
             if "auto_buy_purchase_ipo" not in account_column_names:
                 dbSession.execute(text("ALTER TABLE account ADD COLUMN auto_buy_purchase_ipo INTEGER DEFAULT 0"))
+
+            # 旧库迁移：为 API 自动报单保留调用方幂等号和券商回报。
+            order_columns = dbSession.execute(text("PRAGMA table_info(orders)")).fetchall()
+            order_column_names = [row[1] for row in order_columns]
+            extra_order_columns = {
+                "client_order_id": "TEXT",
+                "request_fingerprint": "TEXT",
+                "submission_state": "TEXT DEFAULT 'received'",
+                "broker_order_id": "TEXT",
+                "broker_status": "TEXT",
+            }
+            for column_name, column_type in extra_order_columns.items():
+                if column_name not in order_column_names:
+                    dbSession.execute(text(f"ALTER TABLE orders ADD COLUMN {column_name} {column_type}"))
+            # Multiple historical rows can have NULL here, but a provided
+            # client order id must uniquely identify one broker instruction.
+            dbSession.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_client_order_id "
+                "ON orders(client_order_id) "
+                "WHERE client_order_id IS NOT NULL AND client_order_id <> ''"
+            ))
 
             # 初始化设置表
             Setting.initialize_default(dbSession)
@@ -361,6 +383,63 @@ class ORM:
             last_id = order.id
         dbSession.close()
         return last_id
+
+    def get_order_by_client_order_id(self, client_order_id):
+        """Return an API order by its upstream idempotency key."""
+        value = str(client_order_id or "").strip()
+        if not value:
+            return {}
+        dbSession = DB.session()
+        try:
+            with dbSession.begin():
+                order = dbSession.execute(
+                    select(Orders).where(Orders.client_order_id == value)
+                ).scalar_one_or_none()
+                return order.toDict() if order else {}
+        finally:
+            dbSession.close()
+
+    def save_api_order_once(self, data, client_order_id, request_fingerprint):
+        """Create one API order or return the existing idempotent request.
+
+        The partial unique index is the final authority here.  The pre-read
+        makes normal retries inexpensive; the IntegrityError branch handles
+        two scheduler workers racing the same event.
+        """
+        key = str(client_order_id or "").strip()
+        if not key:
+            raise ValueError("client_order_id is required")
+        existing = self.get_order_by_client_order_id(key)
+        if existing:
+            return existing, False
+
+        dbSession = DB.session()
+        try:
+            with dbSession.begin():
+                order = Orders()
+                payload = dict(data or {})
+                payload.update(
+                    {
+                        "client_order_id": key,
+                        "request_fingerprint": str(request_fingerprint or ""),
+                        "submission_state": "received",
+                    }
+                )
+                for field, value in payload.items():
+                    if hasattr(order, field) and value is not None:
+                        setattr(order, field, value)
+                dbSession.add(order)
+                dbSession.flush()
+                result = order.toDict()
+            return result, True
+        except IntegrityError:
+            dbSession.rollback()
+            existing = self.get_order_by_client_order_id(key)
+            if existing:
+                return existing, False
+            raise
+        finally:
+            dbSession.close()
 
     def get_order_list(self, data):
         # full_backtest

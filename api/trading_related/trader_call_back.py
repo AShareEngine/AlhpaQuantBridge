@@ -46,7 +46,26 @@ class MyXtQuantTraderCallback(XtQuantTraderCallback):
     :param order: XtOrder对象
     :return:
     """
-    pass
+    # API orders use the local Orders.id as QMT's order_remark.  Persist the
+    # broker acknowledgement here so GET /api/orders/<id> stays meaningful
+    # after the original HTTP request has completed.
+    try:
+      local_order_id = int(str(getattr(order, "order_remark", "") or ""))
+    except (TypeError, ValueError):
+      local_order_id = 0
+    if local_order_id > 0:
+      broker_order_id = str(getattr(order, "order_id", "") or "")
+      broker_status = str(getattr(order, "order_status", "") or "")
+      G.orm.update_order(
+        local_order_id,
+        submission_state="broker_reported",
+        broker_order_id=broker_order_id or None,
+        fix_result_order_id=broker_order_id or None,
+        broker_status=broker_status or "reported",
+        status=getattr(order, "order_status", 0),
+        transaction_status=getattr(order, "order_status", 0),
+        status_msg=str(getattr(order, "status_msg", "") or ""),
+      )
     # # 系统下的单
     # if order.order_remark and order.strategy_name:
     #   orderId = order.order_remark
@@ -70,6 +89,22 @@ class MyXtQuantTraderCallback(XtQuantTraderCallback):
     """
     try:
       with self.trade_lock:  # 使用锁确保线程安全
+        try:
+          local_order_id = int(str(getattr(trade, "order_remark", "") or ""))
+        except (TypeError, ValueError):
+          local_order_id = 0
+        if local_order_id > 0:
+          broker_order_id = str(getattr(trade, "order_id", "") or "")
+          G.orm.update_order(
+            local_order_id,
+            submission_state="trade_reported",
+            broker_order_id=broker_order_id or None,
+            fix_result_order_id=broker_order_id or None,
+            broker_status=str(getattr(trade, "order_status", "") or "trade_reported"),
+            status=getattr(trade, "order_status", 0),
+            transaction_status=getattr(trade, "order_status", 0),
+            status_msg=str(getattr(trade, "status_msg", "") or ""),
+          )
         if trade.order_remark and trade.strategy_name:
           taskId = trade.strategy_name
           orderId = trade.order_remark

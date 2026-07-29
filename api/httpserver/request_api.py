@@ -1162,6 +1162,16 @@ class APIService:
                 return self._error(result, 400)
             return self._success(result, message="order accepted")
 
+        @self.app.route("/api/orders/<int:order_id>", methods=["GET"])
+        def get_order_status(order_id):
+            order = G.orm.query_order_by_id(order_id)
+            if not order:
+                return self._error("order not found", 404)
+            return self._success(
+                self.trade_controller.get_api_order_status(order_id),
+                message="order status",
+            )
+
         @self.app.route("/api/task/position_ratio", methods=["POST", "PUT"])
         def update_task_position_ratio():
             data = request.get_json(silent=True) or {}
