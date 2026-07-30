@@ -17,41 +17,18 @@
 
       <div class="actions">
         <el-button type="primary" @click="goApi">打开 API 服务</el-button>
-        <el-button type="warning" :loading="isSyncingData" @click="resyncBaseDataAction">重新同步基础数据</el-button>
       </div>
-      <div class="sync-tip">同步范围: 交易日、股票列表、ST 股票数据。限价保护和打新相关功能会使用这些基础数据。</div>
     </section>
   </div>
 </template>
 
 <script setup>
-import { resyncBaseData } from '@/api/comm_tube'
-import { ElMessage } from 'element-plus'
-import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const isSyncingData = ref(false)
 
 const goApi = () => {
   router.push('/api')
-}
-
-const resyncBaseDataAction = async () => {
-  if (isSyncingData.value) return
-  isSyncingData.value = true
-  try {
-    const ok = await resyncBaseData()
-    if (ok) {
-      ElMessage.success('基础数据重新同步成功')
-    } else {
-      ElMessage.error('基础数据重新同步失败')
-    }
-  } catch (error) {
-    ElMessage.error('基础数据重新同步失败')
-  } finally {
-    isSyncingData.value = false
-  }
 }
 </script>
 
@@ -103,9 +80,4 @@ const resyncBaseDataAction = async () => {
   margin-top: 18px;
 }
 
-.sync-tip {
-  margin-top: 10px;
-  color: var(--app-text-faint);
-  font-size: 12px;
-}
 </style>

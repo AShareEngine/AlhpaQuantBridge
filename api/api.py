@@ -29,7 +29,6 @@ from api.tools import common
 
 load_dotenv()
 from .global_params import G
-from .trading_related.sync_data import sync_data_stocks_data
 from .tools.common import (
     create_ths_shortcut,
     open_ths_shortcut,
@@ -52,7 +51,7 @@ class API(System):
         Initialize the API class.
 
         This constructor sets up the trade controller, initializes the task scheduler
-        with various scheduled tasks, and starts a loop to sync stock data.
+        with various scheduled tasks.
 
         Attributes:
             trade_controller (TradeController): Manages trade-related operations.
@@ -68,10 +67,8 @@ class API(System):
         self.task_scheduler = TaskScheduler(self.trade_controller)
 
         self.task_scheduler.schedule_national_debt(hour=15, minute=10)
-        self.task_scheduler.schedule_save_all_data(hour=8, minute=56)
 
         self.loop = asyncio.get_event_loop()
-        self.loop.run_in_executor(None, sync_data_stocks_data)
 
 
 
@@ -295,19 +292,6 @@ class API(System):
 
     def clear_log(self):
         return G.orm.clear_log()
-
-    def resync_base_data(self):
-        try:
-            G.logger.info(
-                "开始强制同步基础数据: data_trade_date_hist, data_all_stocks, data_st_stocks",
-                extra={"showMessage": True},
-            )
-            sync_data_stocks_data(force=True)
-            G.logger.info("基础数据强制同步完成", extra={"showMessage": True})
-            return True
-        except Exception as e:
-            G.logger.error(f"基础数据强制同步失败: {str(e)}", extra={"showMessage": True})
-            return False
 
     def get_account_info(self, account_id=None):
         if account_id:

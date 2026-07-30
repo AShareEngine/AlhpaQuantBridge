@@ -1,6 +1,5 @@
 from pyapp.pkg.xtquant import xtconstant
 import re
-from api.global_params import G
 from datetime import datetime
 
 def is_auction_period(stock_code: str, check_time: datetime = None) -> bool:
@@ -237,39 +236,24 @@ def convert_stock_suffix(stock_code: str) -> str:
 
 # 拼装股票代码
 def stockcode_mapping_dic(security):
-    # {'id': 788, 'code': '600031', 'name': '三一重工', 'latest_price': 18.03, 'change_rate': 1.24, 'change_amount': 0.22, 'volume': 462329.0, 'turnover': 834199896.0, 'amplitude': 1.63, 'highest': 18.17, 'lowest': 17.88, 'open': 17.89, 'close': 17.81, 'volume_ratio': 1.44, 'turnover_ratio': 0.55, 'pe_dynamic': 15.46, 'pb': 2.13, 'total_market_value': 152803854007.0, 'circulating_market_value': 152609811541.0, 'rise_speed': -0.06, 'five_minute_change': 0.06, 'sixty_days_change': -7.82, 'year_to_date_change': 11.85, 'created_at': '2025-06-17 16:46:35', 'updated_at': '2025-06-17 16:46:35'}
-    stockDic = {
-        "security":security,
-        "is_st":security in G.stock_map["st_stock_code"]
+    return {
+        "security": security,
+        # 不再维护外部 ST 股票列表；券商端仍会校验最终委托。
+        "is_st": False,
     }
-    return stockDic
 
 # 按比率买卖股票
 def count_stock_price(security,price,is_buy,is_mock_state = 0):
-    # 获取上一个收盘价格
-    try:
-        is_data_synced = G.stock_map["is_data_synced"]
-        is_st = security in G.stock_map["st_stock_code"]
-        close = G.stock_map["all_stock_code"][security]["close"]
-
-        # 如果数据未同步，使用最新价
-        optimal_price = calculate_max_possible_price(
-            security, 
-            close, 
-            price,
-            "buy" if is_buy else "sell",
-            is_st,
-            False,
-            is_data_synced and is_mock_state == 0, #同步完就True 否则不判断涨停
-        )
-        return optimal_price
-    except Exception as _exc:
-        if is_buy:
-            cage_upper = round(price * 1.01, 2)
-            return cage_upper
-        else:
-            cage_lower = round(price * 0.99, 2)
-            return cage_lower
+    # 没有外部昨收价和 ST 标记后，仅按当前参考价计算各板块价格笼子。
+    return calculate_max_possible_price(
+        security,
+        price,
+        price,
+        "buy" if is_buy else "sell",
+        False,
+        False,
+        False,
+    )
        
     
 def get_qmt_price_type(security, order_style_str, is_buy=True, price=0, open_mandatory_limit_order=0,is_mock_state = 0):

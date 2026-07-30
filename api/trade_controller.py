@@ -65,6 +65,16 @@ class TradeController:
         self.refresh_multe_trader_arr()
         # self.process_check_loop()
 
+    @staticmethod
+    def _is_local_trading_day(check_time=None) -> bool:
+        """
+        无外部交易日历时只排除周末。
+
+        法定节假日和临时休市由 QMT/券商在委托阶段做最终校验。
+        """
+        check_time = check_time or datetime.now()
+        return check_time.weekday() < 5
+
     def _get_server_http_base(self) -> str:
         """
         从本地配置中获取服务端地址，并将 ws/wss 转为 http/https 的 base url
@@ -293,9 +303,7 @@ class TradeController:
 
     # 购买国债逆回购（多账号）
     def buy_reverse_repo(self, account_id=None):
-        trade_date_list = G.orm.get_trade_date_list()
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        if today_str not in trade_date_list:
+        if not self._is_local_trading_day():
             G.logger.info(
                 "今日不是交易日，不执行自动购入国债逆回购", extra={"showMessage": True}
             )
@@ -318,9 +326,7 @@ class TradeController:
             G.logger.error(text, extra={"showMessage": True})
 
     def auto_buy_new_stock(self, account_id=None):
-        trade_date_list = G.orm.get_trade_date_list()
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        if today_str not in trade_date_list:
+        if not self._is_local_trading_day():
             G.logger.info("今日不是交易日，不执行自动打新", extra={"showMessage": True})
             return
 
@@ -354,9 +360,7 @@ class TradeController:
             trader_state.trader.buy(codeSt, limit, price, order_remark="打新")
 
     def auto_buy_convertible_bond(self, account_id=None):
-        trade_date_list = G.orm.get_trade_date_list()
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        if today_str not in trade_date_list:
+        if not self._is_local_trading_day():
             G.logger.info("今日不是交易日，不执行自动打债", extra={"showMessage": True})
             return
 

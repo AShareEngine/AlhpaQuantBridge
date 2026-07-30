@@ -10,9 +10,7 @@ import datetime
 import logging
 from typing import Optional, Callable
 from api.system import System
-from api.trading_related.sync_data import sync_data_stocks_data
 from ..global_params import G
-from ..tools.common import sync_data_to_global
 
 
 class TaskScheduler:
@@ -53,9 +51,6 @@ class TaskScheduler:
         """
         检查任务配置是否满足执行条件（多账号）
         """
-        if task_type == "save_all_data":
-            return True
-
         account_list = G.orm.get_account_list()
         for account in account_list:
             if account.get("status") != 1 or account.get("client_type") != 2:
@@ -211,27 +206,3 @@ class TaskScheduler:
         self.logger.info("所有定时任务已取消")
         return True 
     
-    def schedule_save_all_data(self, hour: int = 17, minute: int = 10) -> bool:
-        """
-        调度保存所有股票数据任务
-        
-        Args:
-            hour: 执行小时，默认10
-            minute: 执行分钟，默认10
-            
-        Returns:
-            bool: 调度是否成功
-        """
-        return self._schedule_task(
-            "save_all_data",
-            hour,
-            minute,
-            self.get_stocks_data
-        )
-        
-    def get_stocks_data(self):
-       sync_data_stocks_data()
-       sync_data_to_global()
-       
-            
-        
