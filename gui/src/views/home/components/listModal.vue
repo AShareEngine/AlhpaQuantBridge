@@ -9,9 +9,6 @@
           <el-option v-for="item in accountOptions" :key="item.id" :label="item.label" :value="item.id" />
         </el-select>
       </el-form-item>
-      <el-form-item label="任务编号" required>
-        <el-input v-model="form.strategy_code" placeholder="例如 API001，外部下单时传 strategy_code" maxlength="32" />
-      </el-form-item>
       <el-form-item label="强制限价单">
         <el-switch v-model="form.open_mandatory_limit_order" :active-value="1" :inactive-value="0" />
       </el-form-item>
@@ -40,7 +37,7 @@
 
 <script setup>
 import { createTask, getAccountList, getUniqueID } from '@/api/comm_tube'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { reactive, ref } from 'vue'
 
 const emit = defineEmits(['getTaskList', 'callBack'])
@@ -53,7 +50,6 @@ const editDic = ref(null)
 const form = reactive({
   name: '',
   account_id: undefined,
-  strategy_code: '',
   allocation_amount: 100000,
   service_charge: 0.00025,
   lower_limit_of_fees: 5,
@@ -80,7 +76,6 @@ const showModal = async (dic, initialAccountId) => {
     editDic.value = dic
     form.name = dic.name
     form.account_id = dic.account_id
-    form.strategy_code = dic.strategy_code
     form.allocation_amount = Number(dic.allocation_amount || dic.can_use_amount || 100000)
     form.service_charge = Number(dic.service_charge ?? 0.00025)
     form.lower_limit_of_fees = Number(dic.lower_limit_of_fees ?? 5)
@@ -90,7 +85,6 @@ const showModal = async (dic, initialAccountId) => {
     editDic.value = null
     form.name = ''
     form.account_id = initialAccountId || undefined
-    form.strategy_code = ''
     form.allocation_amount = 100000
     form.service_charge = 0.00025
     form.lower_limit_of_fees = 5
@@ -107,26 +101,11 @@ const handleSubmit = async () => {
     ElMessage.error('请选择关联账号')
     return
   }
-  if (!form.strategy_code) {
-    ElMessage.error('请输入任务编号')
-    return
-  }
-
-  if (isEdit.value && editDic.value.strategy_code !== form.strategy_code) {
-    const confirm = await ElMessageBox.confirm('任务编号是外部 API 的调用标识，确认修改吗？', '确认', {
-      confirmButtonText: '确认',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }).catch(() => false)
-    if (!confirm) return
-  }
-
   const userId = await getUniqueID()
   const payload = {
     id: editDic.value?.id || undefined,
     name: form.name,
     account_id: form.account_id,
-    strategy_code: form.strategy_code,
     order_count_type: 2,
     dynamic_calculation_type: 1,
     strategy_amount: 0,

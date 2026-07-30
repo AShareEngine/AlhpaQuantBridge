@@ -43,9 +43,6 @@
                     <span v-if="item.is_open == 1" style="margin-left: 10px">(运行中)</span>
                   </div>
                 </div>
-                <div class="strategy_code">
-                  <span>{{ item.strategy_code }}</span>
-                </div>
                 <div class="cell-order_count_type">
                   <el-tag style="margin-right: 5px" round effect="plain" disable-transitions>API调用</el-tag>
                   <el-tag round effect="plain" style="margin-left: 5px" disable-transitions type="primary">本地下单</el-tag>
@@ -283,13 +280,6 @@ onMounted(async () => {
               text-overflow: ellipsis;
               white-space: nowrap;
             }
-          }
-          .strategy_code {
-            margin-top: 8px;
-            font-size: 14px;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
           }
           .cell-order_count_type {
             margin-top: 10px;

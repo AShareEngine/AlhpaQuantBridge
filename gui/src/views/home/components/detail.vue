@@ -45,7 +45,6 @@
             </el-table-column>
           </el-table>
           <div class="task-detail">
-            <span>任务编号: {{ taskDic.strategy_code || '-' }}</span>
             <span>可用资金: {{ Number(taskDic.can_use_amount || 0).toFixed(2) }}</span>
           </div>
         </div>
@@ -82,7 +81,6 @@
           <span class="section-title">API 调用</span>
           <el-descriptions :column="1" size="small" border style="margin-top: 10px">
             <el-descriptions-item label="任务ID">{{ taskDic.id || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="任务编号">{{ taskDic.strategy_code || '-' }}</el-descriptions-item>
             <el-descriptions-item label="状态">{{ taskDic.is_open == 1 ? '已开启' : '已关闭' }}</el-descriptions-item>
           </el-descriptions>
         </div>

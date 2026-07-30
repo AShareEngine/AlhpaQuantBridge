@@ -6,7 +6,7 @@
 
 - 本地配置 QMT / MiniQMT 账号与同花顺下单账号
 - 多账号、多 API 任务管理
-- 启停任务，使用任务编号 `strategy_code` 控制外部 API 下单权限
+- 启停任务，使用数值任务 ID `task_id` 控制外部 API 下单权限
 - 本地 HTTP API 下单: `POST /api/order` 或 `POST /api/orders`
 - 兼容 `quant-qmt-proxy` 风格的数据 REST API: `/api/v1/data/*`
 - 查询账户资金、账户持仓、任务本地持仓、今日成交
@@ -30,7 +30,7 @@
 curl -X POST http://127.0.0.1:8080/api/order \
   -H 'Content-Type: application/json' \
   -d '{
-    "strategy_code": "API001",
+    "task_id": 1,
     "stock_code": "600031",
     "volume": 100,
     "price": 18.23,
@@ -41,7 +41,7 @@ curl -X POST http://127.0.0.1:8080/api/order \
 
 字段说明：
 
-- `strategy_code`: 客户端任务编号，也可以改传 `task_id`
+- `task_id`: 客户端任务 ID；新接入的外部调用请使用该字段
 - `stock_code`: 股票代码，支持 `600031` / `600031.SH` / `600031.XSHG`
 - `volume`: 下单数量，兼容字段名 `amount`
 - `price`: 参考价格或限价价格

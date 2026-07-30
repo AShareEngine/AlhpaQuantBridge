@@ -115,7 +115,7 @@ const originalApiDocs = computed(() => [
     method: 'POST',
     url: `${baseUrl.value}/api/order`,
     body: `{
-  "strategy_code": "API001",
+  "task_id": 1,
   "stock_code": "600031",
   "volume": 100,
   "price": 18.23,
@@ -123,7 +123,7 @@ const originalApiDocs = computed(() => [
   "order_type": 1
 }`,
     description: [
-      'strategy_code 对应桌面端任务编号，也可传 task_id',
+      'task_id 对应桌面端任务 ID；新接入请使用该字段',
       'is_buy: 1 买入, 0 卖出；side: "buy"/"sell" 也支持',
       'order_type: 1 市价, 2 限价；也兼容 MarketOrderStyle / LimitOrderStyle(18.23)',
       '任务必须为 API 调用任务且已开启，QMT 账号必须已连接'
@@ -134,7 +134,7 @@ const originalApiDocs = computed(() => [
   "data": {
     "order_id": 12,
     "task_id": 1,
-    "strategy_code": "API001"
+    "task_id": 1
   }
 }`
   },
@@ -143,14 +143,13 @@ const originalApiDocs = computed(() => [
     title: '获取任务列表',
     method: 'GET',
     url: `${baseUrl.value}/api/tasks`,
-    description: ['支持 query 参数: id / account_id / strategy_code / platform / is_open / order_count_type'],
+    description: ['支持 query 参数: id / account_id / platform / is_open / order_count_type'],
     response: `{
   "code": 200,
   "data": [
     {
       "id": 1,
       "name": "API任务",
-      "strategy_code": "API001",
       "platform": 10
     }
   ]
@@ -164,7 +163,6 @@ const originalApiDocs = computed(() => [
     body: `{
   "name": "API任务",
   "account_id": 1,
-  "strategy_code": "API001",
   "allocation_amount": 100000,
   "service_charge": 0.00025,
   "lower_limit_of_fees": 5,
@@ -197,7 +195,7 @@ const originalApiDocs = computed(() => [
     title: '获取账户资金',
     method: 'GET',
     url: `${baseUrl.value}/api/account_fund?account_id=1`,
-    description: ['支持 account_id / task_id / strategy_code 三种定位方式；都不传则返回所有账户汇总资金'],
+    description: ['支持 account_id / task_id；都不传则返回所有账户汇总资金'],
     response: `{
   "code": 200,
   "data": {
@@ -264,7 +262,7 @@ const originalApiDocs = computed(() => [
     title: '获取今日成交',
     method: 'GET',
     url: `${baseUrl.value}/api/tasks/1/today_trades`,
-    description: ['兼容旧接口: GET /api/today_trades?task_id=1 或 ?strategy_code=API001'],
+    description: ['兼容旧接口: GET /api/today_trades?task_id=1'],
     response: `{
   "code": 200,
   "data": []
